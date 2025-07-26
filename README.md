@@ -1,3 +1,3 @@
 # SS---Shell-Switcher
-![SS Shell Switcher Icon](img/SS Shell-Switcher icon.png)
+<img src="img/SS_Shell-Switcher_icon.png"
 A simple shell switcher written in a shell script
