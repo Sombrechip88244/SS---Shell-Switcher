@@ -14,5 +14,5 @@ brew tap sombrechip88244/tap-ss
 brew install shell-switcher
 ```
 ## Other
-[Contributing](CONTRIBUTING.md)
-[License](LICENSE)
+[Contributing](CONTRIBUTING.md) /
+[License](LICENSE) /
