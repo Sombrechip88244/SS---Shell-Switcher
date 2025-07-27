@@ -1,19 +1,20 @@
 #!/bin/bash
 
-# Advanced Shell Switcher (Bash 3.2 Compatible)
-# Version 2.0.0
+# Advanced Shell Switcher (Direct Execution)
+# Version 2.1.0
 # Author: Sombrechip88244
 
 set -e
 
 # Configuration
-VERSION="2.0.0"
-SCRIPT_NAME="Shell Switcher"
+VERSION="2.1.0"
+SCRIPT_NAME="Shell Switcher (Direct)"
 CONFIG_DIR="$HOME/.config/shell-switcher"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 HISTORY_FILE="$CONFIG_DIR/history.log"
 BACKUP_FILE="$CONFIG_DIR/backup.txt"
 FAVORITES_FILE="$CONFIG_DIR/favorites.txt"
+SESSION_FILE="$CONFIG_DIR/current_session.txt"
 
 # Colors
 RED='\033[0;31m'
@@ -92,6 +93,12 @@ get_shell_info() {
         "csh")
             echo "C Shell - Shell with C-like syntax"
             ;;
+        "sh")
+            echo "Bourne Shell - Original Unix shell, minimal but universal"
+            ;;
+        "ash")
+            echo "Almquist Shell - Lightweight shell, often used in embedded systems"
+            ;;
         *)
             echo "Shell information not available"
             ;;
@@ -107,8 +114,8 @@ validate_shell() {
     if [ ! -x "$shell_path" ]; then
         return 2
     fi
-    # Check if shell is in /etc/shells
-    grep -q "^$shell_path$" /etc/shells 2>/dev/null || return 3
+    # Try to execute shell with --version or -c 'exit 0' to test validity
+    "$shell_path" -c 'exit 0' >/dev/null 2>&1 || return 3
     return 0
 }
 
@@ -127,6 +134,16 @@ get_shell_version() {
             ;;
         "fish")
             version=$("$shell_path" --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -n1)
+            ;;
+        "ksh")
+            version=$("$shell_path" -c 'echo $KSH_VERSION' 2>/dev/null | head -n1)
+            ;;
+        "dash"|"ash"|"sh")
+            # These shells often don't have version flags, try different approaches
+            version=$("$shell_path" -c 'echo $0' 2>/dev/null | xargs basename)
+            ;;
+        "tcsh"|"csh")
+            version=$("$shell_path" -c 'echo $version' 2>/dev/null | head -n1)
             ;;
         *)
             version="Unknown"
@@ -160,6 +177,10 @@ check_shell_plugins() {
 # Get available shells with validation
 get_available_shells() {
     local shells=""
+    # Common shell locations
+    local common_shells="/bin/sh /bin/bash /bin/zsh /bin/fish /bin/csh /bin/tcsh /bin/ksh /bin/dash /bin/ash /usr/bin/zsh /usr/bin/fish /usr/local/bin/zsh /usr/local/bin/fish /opt/homebrew/bin/zsh /opt/homebrew/bin/fish"
+    
+    # Check /etc/shells if it exists
     if [ -f /etc/shells ]; then
         while read shell; do
             case "$shell" in
@@ -168,7 +189,16 @@ get_available_shells() {
             validate_shell "$shell" >/dev/null 2>&1 && shells="${shells}${shell}\n"
         done < /etc/shells
     fi
-    echo -e "$shells" | sed '/^$/d'
+    
+    # Also check common locations
+    for shell in $common_shells; do
+        if validate_shell "$shell" >/dev/null 2>&1; then
+            # Avoid duplicates
+            echo -e "$shells" | grep -q "^$shell$" || shells="${shells}${shell}\n"
+        fi
+    done
+    
+    echo -e "$shells" | sed '/^$/d' | sort -u
 }
 
 # Add shell to favorites
@@ -220,20 +250,19 @@ backup_shell() {
     log_action "Backed up shell: $SHELL"
 }
 
-# Restore previous shell
-restore_shell() {
-    if [ -f "$BACKUP_FILE" ]; then
-        local backup_shell
-        backup_shell=$(cat "$BACKUP_FILE")
-        if validate_shell "$backup_shell"; then
-            change_shell "$backup_shell" false
-        else
-            print_color "$RED" "$ERROR Backup shell is not valid: $backup_shell"
-            return 1
-        fi
-    else
-        print_color "$YELLOW" "$WARNING No backup found. Use --backup first."
-        return 1
+# Store current session info
+store_session() {
+    local new_shell="$1"
+    echo "PARENT_SHELL=$SHELL" > "$SESSION_FILE"
+    echo "NEW_SHELL=$new_shell" >> "$SESSION_FILE"
+    echo "SESSION_START=$(date '+%Y-%m-%d %H:%M:%S')" >> "$SESSION_FILE"
+    echo "PID=$$" >> "$SESSION_FILE"
+}
+
+# Get session info
+get_session_info() {
+    if [ -f "$SESSION_FILE" ]; then
+        cat "$SESSION_FILE"
     fi
 }
 
@@ -261,7 +290,7 @@ health_check() {
             0) print_color "$GREEN" "Healthy" ;;
             1) print_color "$RED" "File not found" ;;
             2) print_color "$RED" "Not executable" ;;
-            3) print_color "$YELLOW" "Not in /etc/shells" ;;
+            3) print_color "$YELLOW" "Cannot execute" ;;
         esac
     done
 }
@@ -276,6 +305,7 @@ get_recommendations() {
     echo "For Data Work:     nu (structured data handling)"
     echo "For Scripts:       bash (maximum compatibility)"
     echo "For Speed:         dash (lightweight, fast startup)"
+    echo "For Compatibility: sh (universal, minimal)"
 }
 
 # Show detailed shell information
@@ -294,17 +324,18 @@ show_shell_info() {
         0) echo "Status: ${GREEN}Available${NC}" ;;
         1) echo "Status: ${RED}Not found${NC}" ;;
         2) echo "Status: ${RED}Not executable${NC}" ;;
-        3) echo "Status: ${YELLOW}Not in /etc/shells${NC}" ;;
+        3) echo "Status: ${YELLOW}Cannot execute${NC}" ;;
     esac
     echo "Plugins/Frameworks: $(check_shell_plugins "$shell_name")"
     grep -q "^$shell_path$" "$FAVORITES_FILE" 2>/dev/null && echo "Favorited: ${YELLOW}${STAR} Yes${NC}" || echo "Favorited: No"
 }
 
-# Change shell function
-change_shell() {
+# Launch shell function (replaces change_shell)
+launch_shell() {
     local new_shell="$1"
     local interactive="${2:-true}"
     local dry_run="${3:-false}"
+    local session_mode="${4:-false}"
 
     validate_shell "$new_shell"
     status="$?"
@@ -312,18 +343,25 @@ change_shell() {
         case $status in
             1) print_color "$RED" "$ERROR Shell not found: $new_shell" ;;
             2) print_color "$RED" "$ERROR Shell not executable: $new_shell" ;;
-            3) print_color "$YELLOW" "$WARNING Shell not in /etc/shells: $new_shell" ;;
+            3) print_color "$YELLOW" "$WARNING Shell cannot be executed: $new_shell" ;;
         esac
         return 1
     fi
 
     if [ "$new_shell" = "$SHELL" ]; then
         print_color "$YELLOW" "$WARNING $new_shell is already your current shell"
-        return 0
+        if [ "$interactive" = "true" ]; then
+            echo -n "Launch it anyway? (y/N): "
+            read answer
+            case "$answer" in
+                y|Y) ;;
+                *) return 0;;
+            esac
+        fi
     fi
 
     if [ "$dry_run" = "true" ]; then
-        print_color "$CYAN" "$INFO Dry run mode - would change shell from $SHELL to $new_shell"
+        print_color "$CYAN" "$INFO Dry run mode - would launch $new_shell"
         return 0
     fi
 
@@ -331,11 +369,12 @@ change_shell() {
     local target_shell
     current_shell=$(basename "$SHELL")
     target_shell=$(basename "$new_shell")
+    
     if [ "$current_shell" != "$target_shell" ]; then
         case "$target_shell" in
-            "fish"|"nu")
+            "fish"|"nu"|"csh"|"tcsh")
                 if [ "$interactive" = "true" ]; then
-                    print_color "$YELLOW" "$WARNING Switching to $target_shell may break some scripts"
+                    print_color "$YELLOW" "$WARNING $target_shell has different syntax than POSIX shells"
                     echo -n "Continue? (y/N): "
                     read answer
                     case "$answer" in
@@ -347,18 +386,22 @@ change_shell() {
         esac
     fi
 
-    print_color "$CYAN" "$INFO Changing shell to $new_shell..."
-    [ "$interactive" = "true" ] && show_progress 20 "Progress: "
-    if chsh -s "$new_shell"; then
-        print_color "$GREEN" "$CHECK Shell successfully changed to $new_shell"
-        print_color "$YELLOW" "$INFO Please log out and log back in for changes to take effect"
-        log_action "Changed shell from $SHELL to $new_shell"
-        echo "$SHELL" > "$BACKUP_FILE"
-    else
-        print_color "$RED" "$ERROR Failed to change shell. Try running with sudo:"
-        echo "sudo chsh -s $new_shell $USER"
-        return 1
+    print_color "$CYAN" "$INFO Launching $new_shell shell..."
+    [ "$interactive" = "true" ] && show_progress 15 "Progress: "
+    
+    # Store session information
+    if [ "$session_mode" = "true" ]; then
+        store_session "$new_shell"
     fi
+    
+    print_color "$GREEN" "$CHECK Starting $new_shell session"
+    print_color "$YELLOW" "$INFO Type 'exit' to return to your previous shell ($SHELL)"
+    print_color "$CYAN" "$INFO Current shell: $new_shell"
+    
+    log_action "Launched shell: $new_shell (from $SHELL)"
+    
+    # Launch the shell interactively
+    exec "$new_shell"
 }
 
 # Interactive numbered menu
@@ -376,6 +419,7 @@ interactive_menu() {
         shells=$(get_available_shells)
     fi
     [ -z "$shells" ] && { print_color "$RED" "$ERROR No shells available"; return 1; }
+    
     print_color "$CYAN" "\n$INFO Available Shells:"
     echo "=================================="
     local i=1
@@ -391,6 +435,7 @@ interactive_menu() {
     done
     echo "q) Quit"
     echo
+    
     while true; do
         echo -n "Select shell (1-$(($i-1))) or 'q' to quit: "
         read choice
@@ -399,13 +444,39 @@ interactive_menu() {
         if [ $? -eq 0 ] && [ "$choice" -ge 1 ] && [ "$choice" -le $((i-1)) ]; then
             local n=1
             for shell in $shells; do
-                [ "$n" = "$choice" ] && { change_shell "$shell" true false; return $?; }
+                [ "$n" = "$choice" ] && { launch_shell "$shell" true false true; return $?; }
                 n=$((n+1))
             done
         else
             print_color "$RED" "$ERROR Invalid selection. Please try again."
         fi
     done
+}
+
+# Quick shell launcher
+quick_launch() {
+    local shell_name="$1"
+    local shells
+    shells=$(get_available_shells)
+    
+    # Try exact path first
+    for shell in $shells; do
+        if [ "$shell" = "$shell_name" ]; then
+            launch_shell "$shell" false false true
+            return $?
+        fi
+    done
+    
+    # Try basename match
+    for shell in $shells; do
+        if [ "$(basename "$shell")" = "$shell_name" ]; then
+            launch_shell "$shell" false false true
+            return $?
+        fi
+    done
+    
+    print_color "$RED" "$ERROR Shell '$shell_name' not found or not available"
+    return 1
 }
 
 # Export configuration
@@ -444,11 +515,12 @@ import_config() {
 # Help function
 show_help() {
     cat << EOF
-Shell Switcher v2.0.0
+Shell Switcher v2.1.0 (Direct Execution Mode)
 
 DESCRIPTION:
-    Advanced shell switcher with features for power users and beginners alike.
-    Supports favorites, backup/restore, shell information, and much more.
+    Advanced shell switcher that launches shells directly without changing
+    your system default. Supports favorites, session tracking, shell 
+    information, and much more.
 
 USAGE:
     shell-switcher.sh [OPTIONS]
@@ -462,9 +534,10 @@ BASIC OPTIONS:
     --interactive           Run interactive menu (default)
     --favorites             Show favorite shells menu
 
-SHELL MANAGEMENT:
-    --set <shell>           Change to specified shell directly
-    --dry-run <shell>       Show what would happen without changing
+SHELL LAUNCHING:
+    --launch <shell>        Launch specified shell directly
+    --quick <shell_name>    Quick launch by shell name (e.g., zsh, fish)
+    --dry-run <shell>       Show what would happen without launching
     --info <shell>          Show detailed information about a shell
     --check                 Health check for all shells
     --recommend             Show shell recommendations
@@ -474,34 +547,48 @@ FAVORITES:
     --remove-favorite <shell> Remove shell from favorites
     --show-favorites          List favorite shells
 
-BACKUP & RESTORE:
-    --backup                Backup current shell
-    --restore               Restore previous shell
-    --history               Show shell change history
+BACKUP & TRACKING:
+    --backup                Backup current shell reference
+    --session-info          Show current session information
+    --history               Show shell launch history
 
 ADVANCED:
     --plugins <shell>       Show plugins/frameworks for shell
     --export [file]         Export configuration
     --import <file>         Import configuration
-    --no-prompt             Skip confirmation prompts
+
+QUICK LAUNCHES:
+    --bash                  Launch bash shell
+    --zsh                   Launch zsh shell
+    --fish                  Launch fish shell
+    --csh                   Launch csh shell
+    --sh                    Launch sh shell
 
 EXAMPLES:
     shell-switcher.sh                    # Interactive menu
-    shell-switcher.sh --set /bin/zsh     # Change to zsh directly
+    shell-switcher.sh --launch /bin/zsh  # Launch zsh directly
+    shell-switcher.sh --quick fish       # Quick launch fish
+    shell-switcher.sh --zsh              # Launch zsh shortcut
     shell-switcher.sh --info zsh         # Show zsh information
     shell-switcher.sh --favorites        # Show favorites menu
-    shell-switcher.sh --backup           # Backup current shell
     shell-switcher.sh --check            # Health check all shells
 
+NOTES:
+    - Shells are launched directly, not set as system default
+    - Type 'exit' in the launched shell to return to previous shell
+    - Session information is tracked for debugging
+    - All shell changes are logged for history
+
 FILES:
-    Config Directory: /Users/oliverfildes/.config/shell-switcher
-    Favorites:       /Users/oliverfildes/.config/shell-switcher/favorites.txt
-    History:         /Users/oliverfildes/.config/shell-switcher/history.log
-    Backup:          /Users/oliverfildes/.config/shell-switcher/backup.txt
+    Config Directory: $CONFIG_DIR
+    Favorites:       $FAVORITES_FILE
+    History:         $HISTORY_FILE
+    Backup:          $BACKUP_FILE
+    Session:         $SESSION_FILE
 
 AUTHOR:
     Created by Sombrechip88244
-    GitHub: https://github.com/Sombrechip88244/SS---Shell-Switcher
+    Modified for direct shell execution
 
 LICENSE:
     GNU General Public License v3.0
@@ -515,8 +602,10 @@ show_version() {
     echo "License: GNU GPL v3.0"
     echo "This is free software; you are free to change and redistribute it."
     echo
-    echo "Features: Interactive menu, Favorites, Backup/Restore, Health check,"
-    echo "         Shell information, Plugin detection, Export/Import"
+    echo "Features: Direct shell launching, Interactive menu, Favorites,"
+    echo "         Session tracking, Shell information, Plugin detection"
+    echo
+    echo "Mode: Direct execution (does not change system default shell)"
 }
 
 # Main argument parsing
@@ -551,16 +640,25 @@ main() {
             ;;
         --current)
             print_color "$CYAN" "Current shell: $SHELL"
+            if [ -f "$SESSION_FILE" ]; then
+                print_color "$YELLOW" "Session info:"
+                cat "$SESSION_FILE"
+            fi
             exit 0
             ;;
-        --set)
+        --launch|--set)
             [ -z "${2:-}" ] && { print_color "$RED" "$ERROR Shell path required"; exit 1; }
-            change_shell "$2" true false
+            launch_shell "$2" true false true
+            exit $?
+            ;;
+        --quick)
+            [ -z "${2:-}" ] && { print_color "$RED" "$ERROR Shell name required"; exit 1; }
+            quick_launch "$2"
             exit $?
             ;;
         --dry-run)
             [ -z "${2:-}" ] && { print_color "$RED" "$ERROR Shell path required"; exit 1; }
-            change_shell "$2" false true
+            launch_shell "$2" false true false
             exit 0
             ;;
         --info)
@@ -598,9 +696,14 @@ main() {
             backup_shell
             exit 0
             ;;
-        --restore)
-            restore_shell
-            exit $?
+        --session-info)
+            if [ -f "$SESSION_FILE" ]; then
+                print_color "$CYAN" "$INFO Current Session Information:"
+                cat "$SESSION_FILE"
+            else
+                print_color "$YELLOW" "$WARNING No active session information"
+            fi
+            exit 0
             ;;
         --history)
             show_history
@@ -621,17 +724,50 @@ main() {
             import_config "$2"
             exit $?
             ;;
+        # Quick launch shortcuts
+        --bash)
+            quick_launch "bash"
+            exit $?
+            ;;
+        --zsh)
+            quick_launch "zsh"
+            exit $?
+            ;;
+        --fish)
+            quick_launch "fish"
+            exit $?
+            ;;
+        --csh)
+            quick_launch "csh"
+            exit $?
+            ;;
+        --tcsh)
+            quick_launch "tcsh"
+            exit $?
+            ;;
+        --sh)
+            quick_launch "sh"
+            exit $?
+            ;;
+        --ksh)
+            quick_launch "ksh"
+            exit $?
+            ;;
+        --dash)
+            quick_launch "dash"
+            exit $?
+            ;;
         --interactive|"")
             print_color "$CYAN" "$STAR Welcome to $SCRIPT_NAME v$VERSION"
             print_color "$WHITE" "Hello $USER!"
             echo
             print_color "$CYAN" "Your current shell is: $SHELL"
             echo
-            echo -n "Would you like to change your shell? (y/N): "
+            echo -n "Would you like to launch a different shell? (y/N): "
             read answer
             case "$answer" in
                 y|Y) interactive_menu false ;;
-                *) print_color "$CYAN" "No changes made. Your shell remains $SHELL";;
+                *) print_color "$CYAN" "No changes made. Staying in $SHELL";;
             esac
             exit 0
             ;;
