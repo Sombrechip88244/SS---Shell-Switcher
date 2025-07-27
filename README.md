@@ -8,11 +8,11 @@
 - Git
 - brew (If using homebrew installation)
 ## Install:
-### Git (Recomended)
+### Git:
 ```
 https://github.com/Sombrechip88244/SS---Shell-Switcher.git ~/
 ```
-### Brew Installation:
+### Brew Installation (Recomended):
 ```
 brew tap sombrechip88244/tap-ss
 brew install shell-switcher
