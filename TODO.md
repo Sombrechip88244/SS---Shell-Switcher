@@ -6,4 +6,5 @@
 
 --------------------------------------------------------------------------------------------------------------------------------------
 
-[]Change brew install command in readme to new Sombrechip88244/tap command
+[x]Change brew install command in readme to new Sombrechip88244/tap command
+[]Test Config system
