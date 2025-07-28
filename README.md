@@ -10,8 +10,11 @@
 ## Install:
 ### Brew Installation (Recomended):
 ```
-brew tap sombrechip88244/tap-ss
+brew tap sombrechip88244/tap
 brew install shell-switcher
 ```
+## Getting Started
+Check out our [Getting Started Guide]()
+
 ## Other
 [Contributing](CONTRIBUTING.md) / [License](LICENSE) / [Changelog](CHANGELOG.md) /

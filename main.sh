@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-VERSION="2.1.0"
+VERSION="1.1.2"
 SCRIPT_NAME="Shell Switcher (Direct)"
 CONFIG_DIR="$HOME/.config/shell-switcher"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
