@@ -105,16 +105,16 @@ Simple text file (`favorites.txt`) with one shell path per line:
 ### Available Commands
 ```bash
 # Add to favorites
-./shell-switcher.sh --add-favorite /bin/zsh
+shell-switcher --add-favorite /bin/zsh
 
 # Remove from favorites
-./shell-switcher.sh --remove-favorite /bin/zsh
+shell-switcher --remove-favorite /bin/zsh
 
 # Show favorites list
-./shell-switcher.sh --show-favorites
+shell-switcher --show-favorites
 
 # Launch favorites menu
-./shell-switcher.sh --favorites
+shell-switcher --favorites
 ```
 
 ### Features
