@@ -1,7 +1,9 @@
-# SS---Shell-Switcher
+# SS
+## The Ultimate Shell Configuration Utility
 <img src="img/SS_Shell-Switcher_icon.png">
 
-> A simple cli shell switcher written
+> A fast cli shell utility written
+>
 > in shell script
 
 ## Prerequisites:

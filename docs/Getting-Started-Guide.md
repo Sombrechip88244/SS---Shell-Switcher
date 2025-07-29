@@ -1,5 +1,5 @@
 # Getting Started Guide:
-Welcome to the Shell Switcher Getting Started Guide! This document will help you set up and configure Shell Switcher quickly and easily. Follow the steps below to get started.
+Welcome to the SS Getting Started Guide! This document will help you set up and configure SS quickly and easily. Follow the steps below to get started.
 
 ## Install
 ### Dependencies
@@ -74,12 +74,12 @@ tazpkg get-install git
 
 ## Configuration System
 
-The shell switcher uses a comprehensive configuration system to manage user preferences, track usage history, and maintain session information. All configuration files are stored in a dedicated directory following modern standards.
+The SS uses a comprehensive configuration system to manage user preferences, track usage history, and maintain session information. All configuration files are stored in a dedicated directory following modern standards.
 
 ## Configuration Directory Structure
 
 ```
-$HOME/.config/shell-switcher/
+$HOME/.config/ss/
 ├── config.yaml          # Main configuration (reserved for future use)
 ├── favorites.txt         # User's favorite shells
 ├── history.log          # Shell launch history
@@ -87,34 +87,21 @@ $HOME/.config/shell-switcher/
 └── current_session.txt  # Current session information
 ```
 
-The script follows the XDG Base Directory specification by storing config files in `~/.config/shell-switcher/`. The directory is automatically created on first run.
-
-## Favorites System
-
-### Purpose
-Store user's preferred shells for quick access through a dedicated favorites menu.
-
-### File Format
-Simple text file (`favorites.txt`) with one shell path per line:
-```
-/bin/zsh
-/usr/local/bin/fish
-/bin/bash
-```
+The script follows the XDG Base Directory specification by storing config files in `~/.config/ss/`. The directory is automatically created on first run.
 
 ### Available Commands
 ```bash
 # Add to favorites
-shell-switcher --add-favorite /bin/zsh
+ss --add-favorite /bin/zsh
 
 # Remove from favorites
-shell-switcher --remove-favorite /bin/zsh
+ss --remove-favorite /bin/zsh
 
 # Show favorites list
-shell-switcher --show-favorites
+ss --show-favorites
 
 # Launch favorites menu
-shell-switcher --favorites
+ss --favorites
 ```
 
 ### Features
@@ -122,6 +109,12 @@ shell-switcher --favorites
 - Shows current shell indicator
 - Displays shell descriptions
 - Falls back to all shells if no favorites configured
+
+### Usage
+```bash
+# View recent history (last 20 entries)
+ss --history
+```
 
 ## History System
 
@@ -139,7 +132,7 @@ Timestamped log entries in `history.log`:
 ### Usage
 ```bash
 # View recent history (last 20 entries)
-shell-switcher --history
+ss --history
 ```
 
 ### Logged Events
@@ -147,6 +140,12 @@ shell-switcher --history
 - Favorite additions/removals
 - Shell backups
 - Configuration changes
+
+### Usage
+```bash
+# Manually backup current shell
+ss --backup
+```
 
 ## Backup System
 
@@ -162,157 +161,79 @@ Single line in `backup.txt` containing the shell path:
 ### Usage
 ```bash
 # Manually backup current shell
-shell-switcher --backup
+ss --backup
 ```
 
 ### Automatic Backup
 The system automatically backs up your current shell when launching a new one through the session management system.
 
-## Session Tracking
-
-### Purpose
-Track detailed information about the currently launched shell session for debugging and reference.
-
-### File Format
-Key-value pairs in `current_session.txt`:
-```
-PARENT_SHELL=/bin/bash
-NEW_SHELL=/bin/zsh
-SESSION_START=2024-01-15 14:30:22
-PID=12345
-```
-
 ### Usage
 ```bash
 # View current session info
-shell-switcher --session-info
+ss --session-info
 
 # Show current shell with session data
-shell-switcher --current
+ss --current
 ```
 
-### Session Data
-- **PARENT_SHELL**: The shell you launched from
-- **NEW_SHELL**: The shell currently running
-- **SESSION_START**: When the session began
-- **PID**: Process ID of the session
+## Export Configuration
 
-## Export/Import System
-
-### Export Configuration
-Export your entire configuration to a portable JSON file:
-
+### Usage
 ```bash
 # Export to default file
-shell-switcher --export
+ss --export
 
 # Export to custom location
-shell-switcher --export my-shell-config.json
-```
-
-### Export Format
-```json
-{
-  "version": "2.1.0",
-  "current_shell": "/bin/bash",
-  "favorites": ["/bin/zsh", "/usr/local/bin/fish"],
-  "backup_shell": "/bin/bash",
-  "export_date": "2024-01-15T14:30:22-05:00"
-}
+ss --export my-shell-config.json
 ```
 
 ### Import Configuration
 ```bash
 # Import from file
-shell-switcher --import my-shell-config.json
+ss --import my-shell-config.json
 ```
 
-> **Note**: Import functionality is basic and recommended for advanced users. Manual review of imported configurations is advised.
-
-## Configuration Workflow
-
 ### Initial Setup
-1. **First Run**: Creates `~/.config/shell-switcher/` directory automatically
+1. **First Run**: Creates `~/.config/ss/` directory automatically
 2. **Add Favorites**: Configure your preferred shells for quick access
 3. **Test Shells**: Use the interactive menu to explore available options
-
-### Daily Usage Flow
-1. **Launch Shell**: Automatically logs action and creates session tracking
-2. **Session Management**: Current session info available anytime
-3. **History Tracking**: All activities logged with timestamps
-4. **Easy Return**: Type `exit` to return to previous shell
 
 ### Example Setup Workflow
 ```bash
 # Set up your favorite shells
-shell-switcher --add-favorite /bin/zsh
-shell-switcher --add-favorite /usr/local/bin/fish
-shell-switcher --add-favorite /bin/bash
+ss --add-favorite /bin/zsh
+ss --add-favorite /usr/local/bin/fish
+ss --add-favorite /bin/bash
 
 # Backup current shell
-shell-switcher --backup
+ss --backup
 
 # Use favorites menu for quick access
-shell-switcher --favorites
+ss --favorites
 
 # Launch a specific shell
-shell-switcher --quick zsh
+ss --quick zsh
 
 # Check what you've been using
-shell-switcher --history
+ss --history
 
 # View current session
-shell-switcher --session-info
+ss --session-info
 ```
-
-## File Management
-
-### Manual Editing
-All configuration files are plain text and can be manually edited:
-- **favorites.txt**: Add/remove shell paths (one per line)
-- **history.log**: View usage patterns (don't edit)
-- **backup.txt**: Contains single shell path reference
-
-### Backup and Sync
-The entire `~/.config/shell-switcher/` directory can be:
-- Backed up with your dotfiles
-- Synced across machines
-- Version controlled with git
-- Restored from backups
 
 ### Cleanup
 ```bash
 # Remove all configuration (start fresh)
-rm -rf ~/.config/shell-switcher/
+rm -rf ~/.config/ss/
 
 # Clear just history
-rm ~/.config/shell-switcher/history.log
+rm ~/.config/ss/history.log
 
 # Reset favorites
-rm ~/.config/shell-switcher/favorites.txt
+rm ~/.config/ss/favorites.txt
 ```
-
-## Troubleshooting
-
-### Missing Configuration Directory
-If the config directory doesn't exist, it will be created automatically on next run.
-
-### Corrupted Files
-All config files are plain text. If corrupted:
-1. Delete the problematic file
-2. Run the script again
-3. The file will be recreated as needed
 
 ### Permission Issues
 Ensure the config directory is writable:
 ```bash
-chmod 755 ~/.config/shell-switcher/
-chmod 644 ~/.config/shell-switcher/*
-```
-
-### Export/Import Problems
-- Verify JSON syntax in export files
-- Check file permissions
-- Ensure proper file paths in imported configurations
-
-The configuration system is designed to be robust, human-readable, and easy to manage, providing both automated convenience and manual control when needed.
+chmod 755 ~/.config/ss/w

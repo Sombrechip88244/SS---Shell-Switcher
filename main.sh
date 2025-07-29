@@ -7,9 +7,9 @@
 set -e
 
 # Configuration
-VERSION="1.1.2"
-SCRIPT_NAME="Shell Switcher (Direct)"
-CONFIG_DIR="$HOME/.config/shell-switcher"
+VERSION="2.1.0"
+SCRIPT_NAME="SS (Shell Switcher)"
+CONFIG_DIR="$HOME/.config/ss"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 HISTORY_FILE="$CONFIG_DIR/history.log"
 BACKUP_FILE="$CONFIG_DIR/backup.txt"
@@ -239,7 +239,7 @@ show_favorites() {
         done < "$FAVORITES_FILE"
     else
         print_color "$YELLOW" "$WARNING No favorite shells configured"
-        echo "Use 'shell-switcher --add-favorite <shell>' to add favorites"
+        echo "Use 'ss --add-favorite <shell>' to add favorites"
     fi
 }
 
@@ -515,7 +515,7 @@ import_config() {
 # Help function
 show_help() {
     cat << EOF
-Shell Switcher v2.1.0 (Direct Execution Mode)
+SS (Shell Switcher) v2.1.0 (Direct Execution Mode)
 
 DESCRIPTION:
     Advanced shell switcher that launches shells directly without changing
@@ -523,7 +523,7 @@ DESCRIPTION:
     information, and much more.
 
 USAGE:
-    shell-switcher.sh [OPTIONS]
+    ss [OPTIONS]
 
 BASIC OPTIONS:
     -h, --help              Show this help message
@@ -565,13 +565,13 @@ QUICK LAUNCHES:
     --sh                    Launch sh shell
 
 EXAMPLES:
-    shell-switcher.sh                    # Interactive menu
-    shell-switcher.sh --launch /bin/zsh  # Launch zsh directly
-    shell-switcher.sh --quick fish       # Quick launch fish
-    shell-switcher.sh --zsh              # Launch zsh shortcut
-    shell-switcher.sh --info zsh         # Show zsh information
-    shell-switcher.sh --favorites        # Show favorites menu
-    shell-switcher.sh --check            # Health check all shells
+    ss                    # Interactive menu
+    ss --launch /bin/zsh  # Launch zsh directly
+    ss --quick fish       # Quick launch fish
+    ss --zsh              # Launch zsh shortcut
+    ss --info zsh         # Show zsh information
+    ss --favorites        # Show favorites menu
+    ss --check            # Health check all shells
 
 NOTES:
     - Shells are launched directly, not set as system default
@@ -773,7 +773,7 @@ main() {
             ;;
         *)
             print_color "$RED" "$ERROR Unknown option: $1"
-            echo "Use '$(basename "$0") --help' for usage information."
+            echo "Use 'ss --help' for usage information."
             exit 1
             ;;
     esac
