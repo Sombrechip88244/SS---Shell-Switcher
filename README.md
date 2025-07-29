@@ -11,9 +11,9 @@
 - brew
 ## Install:
 ### Brew Installation (Recomended):
-```
+```bash
 brew tap sombrechip88244/tap
-brew install shell-switcher
+brew install ss
 ```
 ## Getting Started
 Check out our [Getting Started Guide](docs/Getting-Started-Guide.md)
